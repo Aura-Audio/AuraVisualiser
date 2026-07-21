@@ -7,6 +7,9 @@
 
 A lightweight, single-page web application for generating, analyzing, and visualizing diverse audio signals in real-time. Built entirely with Vanilla JavaScript, the HTML5 Canvas API, and the Web Audio API—**zero external dependencies required.**
 
+- Main - https://auravisualiser.pages.dev/
+- v1 - https://7c8ba97d.auravisualiser.pages.dev/
+
 ## ✨ Features
 
 *   **Integrated Audio Engine:** Generate 6 distinct types of audio scenarios directly within the browser (no external files needed).
