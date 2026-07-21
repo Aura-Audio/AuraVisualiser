@@ -1,502 +1,732 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AuraVisualiser</title>
-    <style>
-        :root {
-            --ui-bg: #1e1e24;
-            --ui-panel: #2b2b36;
-            --ui-text: #f0f0f5;
-            --ui-accent: #00d2ff;
-            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AuraVisualiser Pro</title>
+<style>
+:root {
+    --ui-bg: #16161c;
+    --ui-panel: #22222e;
+    --ui-panel-alt: #2a2a3a;
+    --ui-text: #e8e8f0;
+    --ui-dim: #7a7a92;
+    --ui-accent: #00d2ff;
+    --ui-accent2: #ff3270;
+    --ui-border: #3a3a4e;
+    --ui-radius: 6px;
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);background:var(--ui-bg);color:var(--ui-text);display:flex}
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── Start Overlay ── */
+#start-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;flex-direction:column;
+  justify-content:center;align-items:center;z-index:2000;gap:12px;transition:opacity .4s}
+#start-overlay.hidden{opacity:0;pointer-events:none}
+#start-overlay h1{font-size:2.4rem;background:linear-gradient(135deg,var(--ui-accent),var(--ui-accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+#start-overlay p{color:var(--ui-dim);font-size:.85rem}
+#start-btn{padding:14px 36px;font-size:1.1rem;font-weight:700;cursor:pointer;border:none;border-radius:var(--ui-radius);
+  background:linear-gradient(135deg,var(--ui-accent),#0090cc);color:#000;transition:transform .15s,box-shadow .15s}
+#start-btn:hover{transform:scale(1.06);box-shadow:0 0 24px rgba(0,210,255,.4)}
 
-        body {
-            font-family: var(--font-family);
-            background-color: var(--ui-bg);
-            color: var(--ui-text);
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
+/* ── Sidebar ── */
+#sidebar{width:310px;min-width:310px;background:var(--ui-panel);display:flex;flex-direction:column;
+  border-right:1px solid var(--ui-border);overflow-y:auto;scrollbar-width:thin}
+#sidebar::-webkit-scrollbar{width:5px}
+#sidebar::-webkit-scrollbar-thumb{background:var(--ui-border);border-radius:3px}
+.side-header{padding:18px 20px 10px;text-align:center;font-size:1.35rem;font-weight:800;
+  background:linear-gradient(135deg,var(--ui-accent),var(--ui-accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.5px}
+.side-sub{text-align:center;font-size:.7rem;color:var(--ui-dim);padding-bottom:12px;border-bottom:1px solid var(--ui-border)}
 
-        /* Overlay for Web Audio API Autoplay Policy */
-        #start-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.85);
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            z-index: 1000;
-        }
+.cg{padding:14px 20px;border-bottom:1px solid var(--ui-border)}
+.cg h3{font-size:.72rem;text-transform:uppercase;letter-spacing:1.4px;color:var(--ui-dim);margin-bottom:10px}
+.cg label{font-size:.8rem;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.cg label span{color:var(--ui-accent);font-weight:600;font-variant-numeric:tabular-nums}
+select,input[type=range]{width:100%;padding:7px 8px;border-radius:4px;background:var(--ui-bg);
+  color:#fff;border:1px solid var(--ui-border);font-size:.82rem;outline:none}
+select:focus,input[type=range]:focus{border-color:var(--ui-accent)}
+input[type=range]{-webkit-appearance:none;height:6px;padding:0;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--ui-accent);border:2px solid #fff;cursor:pointer}
+.color-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.color-row label{margin:0;flex:1}
+input[type=color]{width:36px;height:28px;border:1px solid var(--ui-border);border-radius:4px;
+  background:none;cursor:pointer;padding:1px}
 
-        #start-overlay button {
-            padding: 15px 30px; font-size: 1.2rem; cursor: pointer;
-            background: var(--ui-accent); color: #000;
-            border: none; border-radius: 5px; font-weight: bold;
-            transition: transform 0.2s;
-        }
-        #start-overlay button:hover { transform: scale(1.05); }
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{flex:1;padding:8px 6px;font-size:.75rem;font-weight:600;border:1px solid var(--ui-border);
+  border-radius:var(--ui-radius);background:var(--ui-panel-alt);color:var(--ui-text);cursor:pointer;
+  transition:background .15s,border-color .15s;text-align:center}
+.btn:hover{border-color:var(--ui-accent);background:#33334a}
+.btn.active{background:var(--ui-accent);color:#000;border-color:var(--ui-accent)}
+.btn.danger:hover{border-color:var(--ui-accent2);color:var(--ui-accent2)}
 
-        /* Layout */
-        #sidebar {
-            width: 320px;
-            background-color: var(--ui-panel);
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            overflow-y: auto;
-            border-right: 1px solid #3a3a4a;
-        }
+.status-bar{margin-top:auto;padding:10px 20px;font-size:.68rem;color:var(--ui-dim);
+  border-top:1px solid var(--ui-border);display:flex;justify-content:space-between}
 
-        #main-view {
-            flex-grow: 1;
-            position: relative;
-            background-color: #000;
-        }
-
-        canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        /* Controls */
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #3a3a4a;
-        }
-
-        .control-group h3 { font-size: 0.9rem; color: #8a8a9e; text-transform: uppercase; letter-spacing: 1px;}
-        
-        label { font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
-        
-        select, input[type="range"] { width: 100%; padding: 8px; border-radius: 4px; background: #1e1e24; color: white; border: 1px solid #444; }
-        
-        .color-picker { display: flex; align-items: center; gap: 10px; }
-        input[type="color"] { width: 40px; height: 30px; border: none; background: none; cursor: pointer; }
-
-        .header-title { font-size: 1.5rem; font-weight: bold; color: var(--ui-accent); text-align: center; margin-bottom: 10px;}
-    </style>
+/* ── Main Canvas Area ── */
+#main-view{flex:1;position:relative;background:#000}
+#visualizer{display:block;width:100%;height:100%}
+#fps-badge{position:absolute;top:10px;right:14px;font-size:.7rem;color:rgba(255,255,255,.45);
+  font-variant-numeric:tabular-nums;pointer-events:none}
+#mode-badge{position:absolute;top:10px;left:14px;font-size:.7rem;color:rgba(255,255,255,.35);
+  pointer-events:none;text-transform:uppercase;letter-spacing:1px}
+</style>
 </head>
 <body>
 
-    <!-- Autoplay Policy Overlay -->
-    <div id="start-overlay">
-        <h1 style="margin-bottom: 20px; color: white;">AuraVisualiser</h1>
-        <button id="start-btn">Initialize Audio Engine</button>
-        <p style="margin-top: 15px; color: #aaa; font-size: 0.9rem;">(Required by browser autoplay policies)</p>
+<!-- Overlay -->
+<div id="start-overlay">
+  <h1>AuraVisualiser Pro</h1>
+  <button id="start-btn">▶&ensp;Initialize Audio Engine</button>
+  <p>Required by browser autoplay policy — click to begin</p>
+</div>
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="side-header">AuraVisualiser Pro</div>
+  <div class="side-sub">Real-time Audio Visualisation Engine</div>
+
+  <!-- Transport -->
+  <div class="cg">
+    <h3>Transport</h3>
+    <div class="btn-row">
+      <button class="btn" id="btn-pause">⏸ Pause</button>
+      <button class="btn danger" id="btn-stop">⏹ Stop</button>
+      <button class="btn" id="btn-screenshot">📷 Capture</button>
     </div>
+    <label style="margin-top:10px">Master Volume <span id="val-vol">15%</span></label>
+    <input type="range" id="slider-vol" min="0" max="100" value="15">
+  </div>
 
-    <!-- Sidebar Controls -->
-    <aside id="sidebar">
-        <div class="header-title">AuraVisualiser</div>
+  <!-- Scenario -->
+  <div class="cg">
+    <h3>Audio Scenario</h3>
+    <select id="scenario-select"></select>
+  </div>
 
-        <!-- Audio Generators -->
-        <div class="control-group">
-            <h3>Audio Scenario</h3>
-            <select id="scenario-select"></select>
-        </div>
+  <!-- Params -->
+  <div class="cg" id="params-group">
+    <h3>Scenario Parameters</h3>
+    <label id="lbl-p1">Param 1 <span id="val-p1">0</span></label>
+    <input type="range" id="slider-p1">
+    <label id="lbl-p2" style="margin-top:10px">Param 2 <span id="val-p2">0</span></label>
+    <input type="range" id="slider-p2">
+  </div>
 
-        <!-- Dynamic Parameters -->
-        <div class="control-group" id="params-group">
-            <h3>Scenario Parameters</h3>
-            <label id="lbl-p1">Param 1 <span id="val-p1">0</span></label>
-            <input type="range" id="slider-p1">
-            
-            <label id="lbl-p2" style="margin-top: 10px;">Param 2 <span id="val-p2">0</span></label>
-            <input type="range" id="slider-p2">
-        </div>
+  <!-- Visualisation Mode -->
+  <div class="cg">
+    <h3>Visualisation Mode</h3>
+    <div class="btn-row" id="viz-modes">
+      <button class="btn active" data-mode="bars">Bars</button>
+      <button class="btn" data-mode="wave">Wave</button>
+      <button class="btn" data-mode="radial">Radial</button>
+      <button class="btn" data-mode="particles">Particles</button>
+    </div>
+    <label style="margin-top:10px"><input type="checkbox" id="chk-log" style="width:auto;margin-right:6px"> Logarithmic Freq Scale</label>
+    <label><input type="checkbox" id="chk-mirror" style="width:auto;margin-right:6px"> Mirror / Symmetry</label>
+    <label><input type="checkbox" id="chk-glow" checked style="width:auto;margin-right:6px"> Glow Effect</label>
+    <label><input type="checkbox" id="chk-peaks" checked style="width:auto;margin-right:6px"> Peak-Hold Caps</label>
+  </div>
 
-        <!-- Visual Presets -->
-        <div class="control-group">
-            <h3>Visual Presets</h3>
-            <select id="preset-select"></select>
-        </div>
+  <!-- Presets -->
+  <div class="cg">
+    <h3>Visual Presets</h3>
+    <select id="preset-select"></select>
+  </div>
 
-        <!-- Custom Styling -->
-        <div class="control-group">
-            <h3>Custom Styling</h3>
-            <div class="color-picker">
-                <input type="color" id="col-bg"> <label>Background</label>
-            </div>
-            <div class="color-picker">
-                <input type="color" id="col-bar"> <label>Primary Bar</label>
-            </div>
-            <div class="color-picker">
-                <input type="color" id="col-peak"> <label>Peak Highlight</label>
-            </div>
-            <label style="margin-top: 10px;">Motion Trail (Fade) <span id="val-trail">0.2</span></label>
-            <input type="range" id="slider-trail" min="0.01" max="1" step="0.01">
-        </div>
-    </aside>
+  <!-- Custom Styling -->
+  <div class="cg">
+    <h3>Custom Styling</h3>
+    <div class="color-row"><input type="color" id="col-bg"><label>Background</label></div>
+    <div class="color-row"><input type="color" id="col-bar"><label>Primary Colour</label></div>
+    <div class="color-row"><input type="color" id="col-peak"><label>Peak / Accent</label></div>
+    <label style="margin-top:6px">Motion Trail <span id="val-trail">0.20</span></label>
+    <input type="range" id="slider-trail" min="0.02" max="1" step="0.01" value="0.20">
+  </div>
 
-    <!-- Visualizer Canvas -->
-    <main id="main-view">
-        <canvas id="visualizer"></canvas>
-    </main>
+  <div class="status-bar">
+    <span id="status-text">Ready</span>
+    <span id="status-fps">-- FPS</span>
+  </div>
+</aside>
 
-    <script>
-        // --- DATA CONFIGURATION ---
+<!-- Canvas -->
+<main id="main-view">
+  <canvas id="visualizer"></canvas>
+  <div id="fps-badge"></div>
+  <div id="mode-badge">BARS</div>
+</main>
 
-        // Scenarios (Generators)
-        const scenarios = {
-            sweep: { 
-                name: "Sine Sweep (Sonar)", 
-                p1: { label: "Sweep Duration (s)", min: 0.5, max: 10, step: 0.1, default: 2 },
-                p1Val: 2,
-                p2: { label: "Max Freq (Hz)", min: 1000, max: 20000, step: 100, default: 10000 },
-                p2Val: 10000
-            },
-            concurrent: { 
-                name: "Concurrent Harmonics", 
-                p1: { label: "Fundamental Freq (Hz)", min: 50, max: 1000, step: 1, default: 220 },
-                p1Val: 220,
-                p2: { label: "Number of Harmonics", min: 1, max: 10, step: 1, default: 5 },
-                p2Val: 5
-            },
-            detune: { 
-                name: "Dual Detuned (Beating)", 
-                p1: { label: "Base Freq (Hz)", min: 100, max: 2000, step: 10, default: 440 },
-                p1Val: 440,
-                p2: { label: "Detune Spread (Hz)", min: 0.1, max: 50, step: 0.1, default: 5 },
-                p2Val: 5
-            },
-            noise: { 
-                name: "Rhythmic Noise Burst", 
-                p1: { label: "Burst Speed (ms)", min: 50, max: 1000, step: 10, default: 200 },
-                p1Val: 200,
-                p2: { label: "Filter Cutoff (Hz)", min: 500, max: 15000, step: 100, default: 5000 },
-                p2Val: 5000
-            },
-            fm: { 
-                name: "FM Synthesis (Bell)", 
-                p1: { label: "Carrier Freq (Hz)", min: 100, max: 2000, step: 10, default: 400 },
-                p1Val: 400,
-                p2: { label: "Modulation Index", min: 1, max: 5000, step: 10, default: 1000 },
-                p2Val: 1000
-            },
-            sub: { 
-                name: "Sub Bass Pulse", 
-                p1: { label: "Sub Freq (Hz)", min: 20, max: 120, step: 1, default: 50 },
-                p1Val: 50,
-                p2: { label: "Pulse Rate (Hz)", min: 1, max: 20, step: 0.5, default: 4 },
-                p2Val: 4
-            }
+<script>
+/* ================================================================
+   DATA CONFIGURATION
+   ================================================================ */
+const scenarios = {
+  sweep:      { name:"Sine Sweep (Sonar)",
+    p1:{label:"Sweep Duration (s)",min:.5,max:10,step:.1,def:2},
+    p2:{label:"Max Freq (Hz)",min:1000,max:20000,step:100,def:10000}},
+  concurrent: { name:"Concurrent Harmonics",
+    p1:{label:"Fundamental (Hz)",min:50,max:1000,step:1,def:220},
+    p2:{label:"Harmonic Count",min:1,max:12,step:1,def:5}},
+  detune:     { name:"Dual Detuned (Beating)",
+    p1:{label:"Base Freq (Hz)",min:100,max:2000,step:10,def:440},
+    p2:{label:"Detune Spread (Hz)",min:.1,max:50,step:.1,def:5}},
+  noise:      { name:"Rhythmic Noise Burst",
+    p1:{label:"Burst Interval (ms)",min:50,max:1000,step:10,def:200},
+    p2:{label:"Filter Cutoff (Hz)",min:500,max:15000,step:100,def:5000}},
+  fm:         { name:"FM Synthesis (Bell)",
+    p1:{label:"Carrier Freq (Hz)",min:100,max:2000,step:10,def:400},
+    p2:{label:"Mod Index",min:1,max:5000,step:10,def:1000}},
+  sub:        { name:"Sub Bass Pulse",
+    p1:{label:"Sub Freq (Hz)",min:20,max:120,step:1,def:50},
+    p2:{label:"Pulse Rate (Hz)",min:.5,max:20,step:.5,def:4}},
+  chord:      { name:"Evolving Pad Chord",
+    p1:{label:"Root Freq (Hz)",min:100,max:600,step:5,def:261},
+    p2:{label:"Detune Width (cents)",min:0,max:50,step:1,def:12}},
+  pluck:      { name:"Karplus-Strong Pluck",
+    p1:{label:"Note Freq (Hz)",min:80,max:1200,step:5,def:330},
+    p2:{label:"Pluck Rate (ms)",min:200,max:3000,step:50,def:800}}
+};
+
+const presets = {
+  aura:       {name:"Aura Forge",       bg:"#111111",bar:"#ff3250",peak:"#ffff00",trail:.20},
+  cyberpunk:  {name:"Cyberpunk City",   bg:"#0a0a2a",bar:"#00ffff",peak:"#ff00ff",trail:.15},
+  matrix:     {name:"Terminal Matrix",  bg:"#001100",bar:"#006600",peak:"#00ff00",trail:.30},
+  ocean:      {name:"Deep Ocean",       bg:"#000b18",bar:"#0066aa",peak:"#00ffcc",trail:.25},
+  sunset:     {name:"Synthwave Sunset", bg:"#1a001a",bar:"#ff5500",peak:"#ffcc00",trail:.10},
+  monochrome: {name:"Monochrome Lab",   bg:"#f5f5f5",bar:"#999999",peak:"#111111",trail:.40},
+  ember:      {name:"Ember Glow",       bg:"#0d0000",bar:"#ff4400",peak:"#ffaa00",trail:.18},
+  arctic:     {name:"Arctic Aurora",    bg:"#020810",bar:"#22ccaa",peak:"#aaeeff",trail:.22}
+};
+
+/* ================================================================
+   STATE
+   ================================================================ */
+let audioCtx, analyser, masterGain, freqData, timeData;
+let activeNodes = [];      // {node, gain?} for proper cleanup
+let scenarioTimers = [];
+let noiseBuffer = null;
+
+let currentScenario = 'sweep';
+let vizMode = 'bars';
+let paused = false;
+let colors = {bg:'#111111',bar:'#ff3250',peak:'#ffff00',trail:.20};
+let opts = {log:false, mirror:false, glow:true, peaks:true};
+
+// Peak-hold array
+let peakHold = [];
+let peakDecay = [];
+
+// Particles
+let particles = [];
+const MAX_PARTICLES = 600;
+
+// FPS
+let fpsFrames=0, fpsLast=performance.now(), fpsVal=0;
+
+const canvas = document.getElementById('visualizer');
+const ctx    = canvas.getContext('2d');
+let W, H, dpr;
+
+/* ================================================================
+   BOOT
+   ================================================================ */
+document.getElementById('start-btn').addEventListener('click',()=>{
+  document.getElementById('start-overlay').classList.add('hidden');
+  initAudio(); buildUI(); resize(); applyPreset('aura'); loadScenario('sweep'); loop();
+});
+window.addEventListener('resize', resize);
+
+function resize(){
+  dpr = window.devicePixelRatio || 1;
+  W = canvas.clientWidth; H = canvas.clientHeight;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+/* ================================================================
+   AUDIO ENGINE
+   ================================================================ */
+function initAudio(){
+  audioCtx  = new (window.AudioContext||window.webkitAudioContext)();
+  analyser  = audioCtx.createAnalyser();
+  masterGain= audioCtx.createGain();
+  analyser.fftSize = 4096;
+  analyser.smoothingTimeConstant = .82;
+  masterGain.gain.value = .15;
+  masterGain.connect(analyser);
+  analyser.connect(audioCtx.destination);
+  freqData = new Uint8Array(analyser.frequencyBinCount);
+  timeData = new Uint8Array(analyser.fftSize);
+  // Pre-build noise buffer
+  const len = audioCtx.sampleRate * 2;
+  noiseBuffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const d = noiseBuffer.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+}
+
+function killAudio(){
+  scenarioTimers.forEach(t=>clearInterval(t)); scenarioTimers=[];
+  activeNodes.forEach(({node,gain})=>{
+    try{node.stop()}catch(_){}
+    try{node.disconnect()}catch(_){}
+    if(gain){try{gain.disconnect()}catch(_){}}
+  });
+  activeNodes=[];
+}
+
+function addNode(node, gain){activeNodes.push({node,gain});}
+
+/* ================================================================
+   SCENARIOS
+   ================================================================ */
+function runScenario(type){
+  killAudio();
+  const s=scenarios[type], p1=s._p1??s.p1.def, p2=s._p2??s.p2.def;
+  const t=audioCtx.currentTime;
+
+  switch(type){
+    case 'sweep':{
+      const o=audioCtx.createOscillator(); o.type='sine';
+      o.frequency.setValueAtTime(40,t);
+      o.frequency.exponentialRampToValueAtTime(Math.max(p2,50),t+p1);
+      o.connect(masterGain); o.start(); addNode(o);
+      const iv=setInterval(()=>{
+        const n=audioCtx.currentTime;
+        o.frequency.cancelScheduledValues(n);
+        o.frequency.setValueAtTime(40,n);
+        o.frequency.exponentialRampToValueAtTime(Math.max(p2,50),n+p1);
+      }, p1*1000+80);
+      scenarioTimers.push(iv);
+      break;}
+
+    case 'concurrent':{
+      for(let i=1;i<=p2;i++){
+        const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+        o.type='sine'; o.frequency.value=p1*i; g.gain.value=1/i;
+        o.connect(g); g.connect(masterGain); o.start(); addNode(o,g);
+      }
+      break;}
+
+    case 'detune':{
+      const a=audioCtx.createOscillator(), b=audioCtx.createOscillator();
+      a.frequency.value=p1; b.frequency.value=p1+p2;
+      a.connect(masterGain); b.connect(masterGain);
+      a.start(); b.start(); addNode(a); addNode(b);
+      break;}
+
+    case 'noise':{
+      const iv=setInterval(()=>{
+        const src=audioCtx.createBufferSource();
+        const flt=audioCtx.createBiquadFilter();
+        const env=audioCtx.createGain();
+        src.buffer=noiseBuffer;
+        flt.type='lowpass'; flt.frequency.value=p2; flt.Q.value=1.2;
+        const dur=p1/1000;
+        env.gain.setValueAtTime(1,audioCtx.currentTime);
+        env.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur*.85);
+        src.connect(flt); flt.connect(env); env.connect(masterGain);
+        src.start(); src.stop(audioCtx.currentTime+dur);
+        // Self-cleanup: remove from activeNodes after stop
+        src.onended=()=>{
+          const idx=activeNodes.findIndex(n=>n.node===src);
+          if(idx>-1) activeNodes.splice(idx,1);
+          try{src.disconnect();flt.disconnect();env.disconnect();}catch(_){}
         };
+        addNode(src,env);
+      }, p1);
+      scenarioTimers.push(iv);
+      break;}
 
-        // Visual Presets
-        const presets = {
-            aura: { name: "Aura Forge (Default)", bg: "#111111", bar: "#ff3250", peak: "#ffff00", trail: 0.2 },
-            cyberpunk: { name: "Cyberpunk City", bg: "#0a0a2a", bar: "#00ffff", peak: "#ff00ff", trail: 0.15 },
-            matrix: { name: "Terminal Matrix", bg: "#001100", bar: "#005500", peak: "#00ff00", trail: 0.3 },
-            ocean: { name: "Deep Ocean", bg: "#000b18", bar: "#0066aa", peak: "#00ffcc", trail: 0.25 },
-            sunset: { name: "Synthwave Sunset", bg: "#1a001a", bar: "#ff5500", peak: "#ffcc00", trail: 0.1 },
-            monochrome: { name: "Monochrome Lab", bg: "#ffffff", bar: "#aaaaaa", peak: "#000000", trail: 0.4 }
+    case 'fm':{
+      const car=audioCtx.createOscillator(), mod=audioCtx.createOscillator();
+      const mg=audioCtx.createGain();
+      car.frequency.value=p1; mod.frequency.value=p1*.501;
+      mg.gain.value=p2;
+      mod.connect(mg); mg.connect(car.frequency);
+      car.connect(masterGain);
+      mod.start(); car.start(); addNode(car); addNode(mod,mg);
+      break;}
+
+    case 'sub':{
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      const lfo=audioCtx.createOscillator(), lg=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=p1;
+      g.gain.value=.5;                       // FIX: centre at 0.5
+      lfo.type='sine'; lfo.frequency.value=p2;
+      lg.gain.value=.5;                      // FIX: ±0.5 → gain 0‥1
+      lfo.connect(lg); lg.connect(g.gain);
+      o.connect(g); g.connect(masterGain);
+      o.start(); lfo.start(); addNode(o,g); addNode(lfo,lg);
+      break;}
+
+    case 'chord':{
+      const ratios=[1, 5/4, 3/2, 15/8];    // Maj7 voicing
+      const det=p2/100;                      // cents → ratio approx
+      ratios.forEach((r,i)=>{
+        const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+        o.type='sawtooth';
+        o.frequency.value=p1*r;
+        o.detune.value=(i%2?1:-1)*det*50;   // spread
+        g.gain.value=.18;
+        o.connect(g); g.connect(masterGain); o.start(); addNode(o,g);
+      });
+      break;}
+
+    case 'pluck':{
+      const iv=setInterval(()=>{
+        // Karplus-Strong via short filtered noise burst
+        const src=audioCtx.createBufferSource();
+        const flt=audioCtx.createBiquadFilter();
+        const env=audioCtx.createGain();
+        src.buffer=noiseBuffer;
+        flt.type='bandpass'; flt.frequency.value=p1; flt.Q.value=30;
+        const dur=.6;
+        env.gain.setValueAtTime(.9,audioCtx.currentTime);
+        env.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);
+        src.connect(flt); flt.connect(env); env.connect(masterGain);
+        src.start(); src.stop(audioCtx.currentTime+dur);
+        src.onended=()=>{
+          const idx=activeNodes.findIndex(n=>n.node===src);
+          if(idx>-1) activeNodes.splice(idx,1);
+          try{src.disconnect();flt.disconnect();env.disconnect();}catch(_){}
         };
+        addNode(src,env);
+      }, p2);
+      scenarioTimers.push(iv);
+      break;}
+  }
+  setStatus('Playing: '+scenarios[type].name);
+}
 
-        // --- STATE & GLOBALS ---
-        let audioCtx, analyser, masterGain;
-        let activeGenerators = []; // Store nodes to kill them when switching
-        let scenarioIntervals = []; // Store intervals to clear them
-        
-        let currentScenario = 'sweep';
-        let currentColors = { bg: "", bar: "", peak: "", trail: 0.2 };
-        
-        const canvas = document.getElementById('visualizer');
-        const ctx = canvas.getContext('2d');
-        let width, height;
+/* ================================================================
+   UI BUILD
+   ================================================================ */
+function buildUI(){
+  const ss=document.getElementById('scenario-select');
+  const ps=document.getElementById('preset-select');
+  for(const[k,v]of Object.entries(scenarios)) ss.add(new Option(v.name,k));
+  for(const[k,v]of Object.entries(presets))  ps.add(new Option(v.name,k));
 
-        // UI Elements
-        const selectScenario = document.getElementById('scenario-select');
-        const selectPreset = document.getElementById('preset-select');
-        const sliderP1 = document.getElementById('slider-p1');
-        const sliderP2 = document.getElementById('slider-p2');
-        const colBg = document.getElementById('col-bg');
-        const colBar = document.getElementById('col-bar');
-        const colPeak = document.getElementById('col-peak');
-        const sliderTrail = document.getElementById('slider-trail');
+  ss.addEventListener('change',e=>loadScenario(e.target.value));
+  ps.addEventListener('change',e=>applyPreset(e.target.value));
 
-        // --- INITIALIZATION ---
-        document.getElementById('start-btn').addEventListener('click', () => {
-            document.getElementById('start-overlay').style.display = 'none';
-            initAudio();
-            initUI();
-            resizeCanvas();
-            applyPreset('aura'); // Load default
-            loadScenario(currentScenario);
-            drawVisualizer();
-        });
+  const s1=document.getElementById('slider-p1'), s2=document.getElementById('slider-p2');
+  s1.addEventListener('input',e=>{
+    scenarios[currentScenario]._p1=+e.target.value;
+    document.getElementById('val-p1').textContent=e.target.value;
+    runScenario(currentScenario);
+  });
+  s2.addEventListener('input',e=>{
+    scenarios[currentScenario]._p2=+e.target.value;
+    document.getElementById('val-p2').textContent=e.target.value;
+    runScenario(currentScenario);
+  });
 
-        window.addEventListener('resize', resizeCanvas);
+  // Volume
+  const sv=document.getElementById('slider-vol');
+  sv.addEventListener('input',e=>{
+    const v=e.target.value/100;
+    masterGain.gain.setTargetAtTime(v,audioCtx.currentTime,.02);
+    document.getElementById('val-vol').textContent=e.target.value+'%';
+  });
 
-        function resizeCanvas() {
-            width = canvas.width = canvas.clientWidth;
-            height = canvas.height = canvas.clientHeight;
-        }
+  // Colors
+  document.getElementById('col-bg').addEventListener('input',e=>colors.bg=e.target.value);
+  document.getElementById('col-bar').addEventListener('input',e=>colors.bar=e.target.value);
+  document.getElementById('col-peak').addEventListener('input',e=>colors.peak=e.target.value);
+  document.getElementById('slider-trail').addEventListener('input',e=>{
+    colors.trail=+e.target.value;
+    document.getElementById('val-trail').textContent=(+e.target.value).toFixed(2);
+  });
 
-        // --- AUDIO ENGINE ---
-        function initAudio() {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioCtx.createAnalyser();
-            masterGain = audioCtx.createGain();
-            
-            analyser.fftSize = 2048; // High resolution
-            analyser.smoothingTimeConstant = 0.8;
-            
-            masterGain.connect(analyser);
-            analyser.connect(audioCtx.destination);
-            masterGain.gain.value = 0.15; // Global volume padding
-        }
+  // Toggles
+  document.getElementById('chk-log').addEventListener('change',e=>opts.log=e.target.checked);
+  document.getElementById('chk-mirror').addEventListener('change',e=>opts.mirror=e.target.checked);
+  document.getElementById('chk-glow').addEventListener('change',e=>opts.glow=e.target.checked);
+  document.getElementById('chk-peaks').addEventListener('change',e=>opts.peaks=e.target.checked);
 
-        function stopAllAudio() {
-            activeGenerators.forEach(node => {
-                try { node.stop(); node.disconnect(); } catch(e){}
-            });
-            activeGenerators = [];
-            scenarioIntervals.forEach(interval => clearInterval(interval));
-            scenarioIntervals = [];
-        }
+  // Viz mode buttons
+  document.querySelectorAll('#viz-modes .btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('#viz-modes .btn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      vizMode=b.dataset.mode;
+      document.getElementById('mode-badge').textContent=vizMode.toUpperCase();
+      particles=[];
+    });
+  });
 
-        // --- SCENARIO LOGIC ---
-        function runScenario(type) {
-            stopAllAudio();
-            const p1 = scenarios[type].p1Val;
-            const p2 = scenarios[type].p2Val;
+  // Transport
+  document.getElementById('btn-pause').addEventListener('click',function(){
+    paused=!paused;
+    this.textContent=paused?'▶ Resume':'⏸ Pause';
+    this.classList.toggle('active',paused);
+    if(paused){audioCtx.suspend();setStatus('Paused');}
+    else{audioCtx.resume();setStatus('Resumed');}
+  });
+  document.getElementById('btn-stop').addEventListener('click',()=>{
+    killAudio(); setStatus('Stopped');
+  });
+  document.getElementById('btn-screenshot').addEventListener('click',()=>{
+    const a=document.createElement('a');
+    a.download='auravisualiser_'+Date.now()+'.png';
+    a.href=canvas.toDataURL('image/png');
+    a.click();
+  });
 
-            switch(type) {
-                case 'sweep': // Sine Sweep
-                    const osc = audioCtx.createOscillator();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(50, audioCtx.currentTime);
-                    // Exponential ramp to Max Freq over Duration
-                    osc.frequency.exponentialRampToValueAtTime(p2, audioCtx.currentTime + p1);
-                    osc.connect(masterGain);
-                    osc.start();
-                    activeGenerators.push(osc);
-                    
-                    // Loop it
-                    let sweepLoop = setInterval(() => {
-                        osc.frequency.setValueAtTime(50, audioCtx.currentTime);
-                        osc.frequency.exponentialRampToValueAtTime(p2, audioCtx.currentTime + p1);
-                    }, p1 * 1000 + 100);
-                    scenarioIntervals.push(sweepLoop);
-                    break;
+  // Keyboard shortcuts
+  window.addEventListener('keydown',e=>{
+    if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+    switch(e.key){
+      case ' ':e.preventDefault();document.getElementById('btn-pause').click();break;
+      case '1':case '2':case '3':case '4':
+        document.querySelectorAll('#viz-modes .btn')[+e.key-1]?.click();break;
+      case 's':document.getElementById('btn-screenshot').click();break;
+    }
+  });
+}
 
-                case 'concurrent': // Harmonics
-                    for(let i = 1; i <= p2; i++) {
-                        let hOsc = audioCtx.createOscillator();
-                        let hGain = audioCtx.createGain();
-                        hOsc.type = 'sine';
-                        hOsc.frequency.value = p1 * i;
-                        // Higher harmonics are quieter
-                        hGain.gain.value = 1 / i; 
-                        hOsc.connect(hGain);
-                        hGain.connect(masterGain);
-                        hOsc.start();
-                        activeGenerators.push(hOsc);
-                    }
-                    break;
+function loadScenario(type){
+  currentScenario=type;
+  const d=scenarios[type];
+  if(d._p1===undefined) d._p1=d.p1.def;
+  if(d._p2===undefined) d._p2=d.p2.def;
+  document.getElementById('lbl-p1').innerHTML=`${d.p1.label} <span id="val-p1">${d._p1}</span>`;
+  const s1=document.getElementById('slider-p1');
+  s1.min=d.p1.min;s1.max=d.p1.max;s1.step=d.p1.step;s1.value=d._p1;
+  document.getElementById('lbl-p2').innerHTML=`${d.p2.label} <span id="val-p2">${d._p2}</span>`;
+  const s2=document.getElementById('slider-p2');
+  s2.min=d.p2.min;s2.max=d.p2.max;s2.step=d.p2.step;s2.value=d._p2;
+  runScenario(type);
+}
 
-                case 'detune': // Beating
-                    let osc1 = audioCtx.createOscillator();
-                    let osc2 = audioCtx.createOscillator();
-                    osc1.frequency.value = p1;
-                    osc2.frequency.value = p1 + p2;
-                    osc1.connect(masterGain); osc2.connect(masterGain);
-                    osc1.start(); osc2.start();
-                    activeGenerators.push(osc1, osc2);
-                    break;
+function applyPreset(key){
+  const p=presets[key];
+  colors.bg=p.bg;colors.bar=p.bar;colors.peak=p.peak;colors.trail=p.trail;
+  document.getElementById('col-bg').value=p.bg;
+  document.getElementById('col-bar').value=p.bar;
+  document.getElementById('col-peak').value=p.peak;
+  document.getElementById('slider-trail').value=p.trail;
+  document.getElementById('val-trail').textContent=p.trail.toFixed(2);
+}
 
-                case 'noise': // Rhythmic Noise
-                    let bufferSize = audioCtx.sampleRate * 2; // 2 seconds of noise
-                    let buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-                    let data = buffer.getChannelData(0);
-                    for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
-                    
-                    let noiseLoop = setInterval(() => {
-                        let noiseSrc = audioCtx.createBufferSource();
-                        let filter = audioCtx.createBiquadFilter();
-                        let env = audioCtx.createGain();
-                        
-                        noiseSrc.buffer = buffer;
-                        filter.type = 'lowpass';
-                        filter.frequency.value = p2;
-                        
-                        env.gain.setValueAtTime(1, audioCtx.currentTime);
-                        env.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + (p1/1000) * 0.8);
+function setStatus(t){document.getElementById('status-text').textContent=t;}
 
-                        noiseSrc.connect(filter);
-                        filter.connect(env);
-                        env.connect(masterGain);
-                        
-                        noiseSrc.start();
-                        noiseSrc.stop(audioCtx.currentTime + (p1/1000));
-                        activeGenerators.push(noiseSrc);
-                    }, p1);
-                    scenarioIntervals.push(noiseLoop);
-                    break;
+/* ================================================================
+   HELPERS
+   ================================================================ */
+function hexRgb(h){
+  const r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h);
+  return r?[parseInt(r[1],16),parseInt(r[2],16),parseInt(r[3],16)]:[0,0,0];
+}
+function lerpColor(a,b,t){
+  return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+}
 
-                case 'fm': // FM Synthesis
-                    let carrier = audioCtx.createOscillator();
-                    let modulator = audioCtx.createOscillator();
-                    let modGain = audioCtx.createGain();
-                    
-                    modulator.frequency.value = p1 * 0.5; // Modulator is fraction of carrier
-                    modGain.gain.value = p2; // Mod Index
-                    carrier.frequency.value = p1;
-                    
-                    modulator.connect(modGain);
-                    modGain.connect(carrier.frequency); // FM Modulation happening here
-                    carrier.connect(masterGain);
-                    
-                    modulator.start(); carrier.start();
-                    activeGenerators.push(carrier, modulator);
-                    break;
-                    
-                case 'sub': // Pulse Bass
-                    let subOsc = audioCtx.createOscillator();
-                    let pulseGain = audioCtx.createGain();
-                    let lfo = audioCtx.createOscillator();
-                    
-                    subOsc.type = 'sine';
-                    subOsc.frequency.value = p1;
-                    lfo.type = 'sine';
-                    lfo.frequency.value = p2;
-                    
-                    // LFO controls Volume
-                    lfo.connect(pulseGain.gain);
-                    subOsc.connect(pulseGain);
-                    pulseGain.connect(masterGain);
-                    
-                    subOsc.start(); lfo.start();
-                    activeGenerators.push(subOsc, lfo);
-                    break;
-            }
-        }
+// Map linear FFT bin → log-scaled index
+function logIndex(i, len){
+  if(!opts.log) return i;
+  const minF=20, maxF=20000;
+  const nyquist=audioCtx.sampleRate/2;
+  const frac=i/len;
+  const f=minF*Math.pow(maxF/minF, frac);
+  return Math.min(len-1, Math.round(f/nyquist*len));
+}
 
-        // --- UI & INTERACTIONS ---
-        function initUI() {
-            // Populate Dropdowns
-            for (const [key, val] of Object.entries(scenarios)) {
-                selectScenario.add(new Option(val.name, key));
-            }
-            for (const [key, val] of Object.entries(presets)) {
-                selectPreset.add(new Option(val.name, key));
-            }
+/* ================================================================
+   RENDER LOOP
+   ================================================================ */
+function loop(){
+  requestAnimationFrame(loop);
 
-            // Events
-            selectScenario.addEventListener('change', (e) => loadScenario(e.target.value));
-            selectPreset.addEventListener('change', (e) => applyPreset(e.target.value));
+  // FPS
+  fpsFrames++;
+  const now=performance.now();
+  if(now-fpsLast>=500){
+    fpsVal=Math.round(fpsFrames/((now-fpsLast)/1000));
+    fpsFrames=0; fpsLast=now;
+    document.getElementById('status-fps').textContent=fpsVal+' FPS';
+    document.getElementById('fps-badge').textContent=fpsVal+' FPS';
+  }
 
-            sliderP1.addEventListener('input', (e) => {
-                scenarios[currentScenario].p1Val = parseFloat(e.target.value);
-                document.getElementById('val-p1').innerText = e.target.value;
-                runScenario(currentScenario); // Restart with new param
-            });
-            sliderP2.addEventListener('input', (e) => {
-                scenarios[currentScenario].p2Val = parseFloat(e.target.value);
-                document.getElementById('val-p2').innerText = e.target.value;
-                runScenario(currentScenario);
-            });
+  if(paused) return;
 
-            // Styling Events
-            colBg.addEventListener('input', (e) => currentColors.bg = e.target.value);
-            colBar.addEventListener('input', (e) => currentColors.bar = e.target.value);
-            colPeak.addEventListener('input', (e) => currentColors.peak = e.target.value);
-            sliderTrail.addEventListener('input', (e) => {
-                currentColors.trail = e.target.value;
-                document.getElementById('val-trail').innerText = e.target.value;
-            });
-        }
+  analyser.getByteFrequencyData(freqData);
+  analyser.getByteTimeDomainData(timeData);
 
-        function loadScenario(type) {
-            currentScenario = type;
-            const data = scenarios[type];
-            
-            // Update UI Labels and Bounds
-            document.getElementById('lbl-p1').innerHTML = `${data.p1.label} <span id="val-p1">${data.p1Val}</span>`;
-            sliderP1.min = data.p1.min; sliderP1.max = data.p1.max; 
-            sliderP1.step = data.p1.step; sliderP1.value = data.p1Val;
+  const binCount=analyser.frequencyBinCount;
+  const bg=hexRgb(colors.bg);
+  const barC=hexRgb(colors.bar);
+  const peakC=hexRgb(colors.peak);
 
-            document.getElementById('lbl-p2').innerHTML = `${data.p2.label} <span id="val-p2">${data.p2Val}</span>`;
-            sliderP2.min = data.p2.min; sliderP2.max = data.p2.max; 
-            sliderP2.step = data.p2.step; sliderP2.value = data.p2Val;
+  // Trail fade
+  ctx.fillStyle=`rgba(${bg[0]},${bg[1]},${bg[2]},${colors.trail})`;
+  ctx.fillRect(0,0,W,H);
 
-            runScenario(type);
-        }
+  ctx.save();
+  if(opts.glow){ctx.shadowBlur=12;ctx.shadowColor=colors.bar;}
 
-        function applyPreset(type) {
-            const preset = presets[type];
-            colBg.value = preset.bg;
-            colBar.value = preset.bar;
-            colPeak.value = preset.peak;
-            sliderTrail.value = preset.trail;
-            
-            currentColors.bg = preset.bg;
-            currentColors.bar = preset.bar;
-            currentColors.peak = preset.peak;
-            currentColors.trail = preset.trail;
-            
-            document.getElementById('val-trail').innerText = preset.trail;
-        }
+  switch(vizMode){
+    case 'bars':   drawBars(binCount,barC,peakC); break;
+    case 'wave':   drawWave(barC,peakC); break;
+    case 'radial': drawRadial(binCount,barC,peakC); break;
+    case 'particles': drawParticles(binCount,barC,peakC); break;
+  }
+  ctx.restore();
+}
 
-        // --- HELPERS ---
-        // Converts HEX color (#ff0000) to RGB string ("255, 0, 0") for alpha blending
-        function hexToRgb(hex) {
-            let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? 
-                `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` 
-                : "0,0,0";
-        }
+/* ── BARS ── */
+function drawBars(n,barC,peakC){
+  const usable=Math.min(n, Math.floor(W/3));
+  const bw=W/usable;
+  if(peakHold.length!==usable){peakHold=new Float32Array(usable);peakDecay=new Float32Array(usable);}
 
-        // --- VISUALIZER DRAW LOOP ---
-        function drawVisualizer() {
-            requestAnimationFrame(drawVisualizer);
+  for(let i=0;i<usable;i++){
+    const fi=logIndex(i,usable);
+    const v=freqData[fi]/255;
+    const h=v*H;
+    const x=i*bw;
+    const y=H-h;
 
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-            analyser.getByteFrequencyData(dataArray);
+    // Gradient per bar
+    const grad=ctx.createLinearGradient(x,H,x,y);
+    const mixed=lerpColor(barC,peakC,v);
+    grad.addColorStop(0,`rgba(${barC[0]},${barC[1]},${barC[2]},.25)`);
+    grad.addColorStop(1,`rgba(${mixed[0]|0},${mixed[1]|0},${mixed[2]|0},${.4+v*.6})`);
+    ctx.fillStyle=grad;
+    ctx.fillRect(x,y,Math.max(bw-1,1),h);
 
-            // 1. Draw Background with Trailing Alpha
-            const bgRgb = hexToRgb(currentColors.bg);
-            ctx.fillStyle = `rgba(${bgRgb}, ${currentColors.trail})`;
-            ctx.fillRect(0, 0, width, height);
+    // Peak hold
+    if(opts.peaks){
+      if(v>peakHold[i]){peakHold[i]=v;peakDecay[i]=0;}
+      else{peakDecay[i]+=.004; peakHold[i]=Math.max(0,peakHold[i]-peakDecay[i]);}
+      const py=H-peakHold[i]*H;
+      ctx.fillStyle=`rgba(${peakC[0]},${peakC[1]},${peakC[2]},.9)`;
+      ctx.fillRect(x,py,Math.max(bw-1,1),2.5);
+    }
 
-            // 2. Draw Frequency Bars
-            const barWidth = (width / bufferLength) * 2.5; // Multiply to fill screen better
-            let x = 0;
+    // Mirror
+    if(opts.mirror){
+      ctx.save();ctx.globalAlpha=.3;ctx.scale(1,-1);ctx.translate(0,-2*H);
+      ctx.fillStyle=grad;ctx.fillRect(x,y,Math.max(bw-1,1),h);
+      ctx.restore();
+    }
+  }
+}
 
-            for (let i = 0; i < bufferLength; i++) {
-                const barHeight = dataArray[i]; // Value 0 - 255
-                
-                if (barHeight > 0) { // Don't draw if silent
-                    const percent = barHeight / 255;
-                    const h = percent * height;
-                    const y = height - h;
+/* ── WAVEFORM ── */
+function drawWave(barC,peakC){
+  const len=timeData.length;
+  ctx.lineWidth=2;
+  ctx.strokeStyle=`rgb(${barC[0]},${barC[1]},${barC[2]})`;
+  ctx.beginPath();
+  for(let i=0;i<len;i++){
+    const x=i/len*W;
+    const y=(timeData[i]/255)*H;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();
 
-                    // Styling Logic: Use Peak color if loud, otherwise Primary Bar color
-                    if (percent > 0.85) {
-                        ctx.fillStyle = currentColors.peak;
-                    } else {
-                        // Optional: Add slight opacity scaling to primary color for depth
-                        const barRgb = hexToRgb(currentColors.bar);
-                        ctx.fillStyle = `rgba(${barRgb}, ${0.3 + (percent * 0.7)})`;
-                    }
+  // Filled area
+  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
+  ctx.fillStyle=`rgba(${barC[0]},${barC[1]},${barC[2]},.08)`;
+  ctx.fill();
 
-                    ctx.fillRect(x, y, barWidth, h);
-                }
-                x += barWidth + 1; // 1px gap
-            }
-        }
-    </script>
+  if(opts.mirror){
+    ctx.save();ctx.globalAlpha=.25;ctx.scale(1,-1);ctx.translate(0,-2*H);
+    ctx.strokeStyle=`rgb(${peakC[0]},${peakC[1]},${peakC[2]})`;
+    ctx.lineWidth=1.5;ctx.beginPath();
+    for(let i=0;i<len;i++){
+      const x=i/len*W, y=(timeData[i]/255)*H;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.stroke();ctx.restore();
+  }
+}
+
+/* ── RADIAL ── */
+function drawRadial(n,barC,peakC){
+  const cx=W/2, cy=H/2;
+  const baseR=Math.min(W,H)*.15;
+  const maxR=Math.min(W,H)*.42;
+  const steps=Math.min(n,360);
+
+  for(let i=0;i<steps;i++){
+    const fi=logIndex(i,steps);
+    const v=freqData[fi]/255;
+    const ang=(i/steps)*Math.PI*2 - Math.PI/2;
+    const r1=baseR;
+    const r2=baseR+v*(maxR-baseR);
+    const x1=cx+Math.cos(ang)*r1, y1=cy+Math.sin(ang)*r1;
+    const x2=cx+Math.cos(ang)*r2, y2=cy+Math.sin(ang)*r2;
+    const mixed=lerpColor(barC,peakC,v);
+    ctx.strokeStyle=`rgba(${mixed[0]|0},${mixed[1]|0},${mixed[2]|0},${.3+v*.7})`;
+    ctx.lineWidth=Math.max(1,(Math.PI*2*baseR/steps)*.7);
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+
+    if(opts.mirror){
+      const x3=cx+Math.cos(ang)*(baseR-v*(maxR-baseR)*.4);
+      const y3=cy+Math.sin(ang)*(baseR-v*(maxR-baseR)*.4);
+      ctx.globalAlpha=.3;
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x3,y3);ctx.stroke();
+      ctx.globalAlpha=1;
+    }
+  }
+  // Centre circle
+  ctx.beginPath();ctx.arc(cx,cy,baseR*.6,0,Math.PI*2);
+  ctx.fillStyle=`rgba(${barC[0]},${barC[1]},${barC[2]},.1)`;ctx.fill();
+  ctx.strokeStyle=`rgba(${peakC[0]},${peakC[1]},${peakC[2]},.3)`;ctx.lineWidth=1;ctx.stroke();
+}
+
+/* ── PARTICLES ── */
+function drawParticles(n,barC,peakC){
+  // Spawn based on energy
+  let energy=0;
+  for(let i=0;i<64;i++) energy+=freqData[i];
+  energy/=64*255;
+  const spawnCount=Math.floor(energy*12);
+  for(let i=0;i<spawnCount&&particles.length<MAX_PARTICLES;i++){
+    const fi=Math.floor(Math.random()*n);
+    const v=freqData[fi]/255;
+    if(v<.05)continue;
+    const ang=Math.random()*Math.PI*2;
+    const spd=.5+v*3;
+    particles.push({
+      x:W/2, y:H/2,
+      vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd,
+      life:1, decay:.005+Math.random()*.015,
+      size:1+v*4,
+      r:barC[0]+(peakC[0]-barC[0])*v,
+      g:barC[1]+(peakC[1]-barC[1])*v,
+      b:barC[2]+(peakC[2]-barC[2])*v
+    });
+  }
+  // Update & draw
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy;
+    p.vx*=.99; p.vy*=.99;
+    p.life-=p.decay;
+    if(p.life<=0){particles.splice(i,1);continue;}
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${p.r|0},${p.g|0},${p.b|0},${p.life*.8})`;
+    ctx.fill();
+  }
+  // Centre glow
+  const grad=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,60);
+  grad.addColorStop(0,`rgba(${barC[0]},${barC[1]},${barC[2]},${energy*.3})`);
+  grad.addColorStop(1,'transparent');
+  ctx.fillStyle=grad;
+  ctx.fillRect(W/2-60,H/2-60,120,120);
+}
+</script>
 </body>
 </html>
