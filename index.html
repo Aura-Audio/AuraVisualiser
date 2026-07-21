@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraVisualiser</title>
+    <style>
+        :root {
+            --ui-bg: #1e1e24;
+            --ui-panel: #2b2b36;
+            --ui-text: #f0f0f5;
+            --ui-accent: #00d2ff;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--ui-bg);
+            color: var(--ui-text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Overlay for Web Audio API Autoplay Policy */
+        #start-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.85);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+
+        #start-overlay button {
+            padding: 15px 30px; font-size: 1.2rem; cursor: pointer;
+            background: var(--ui-accent); color: #000;
+            border: none; border-radius: 5px; font-weight: bold;
+            transition: transform 0.2s;
+        }
+        #start-overlay button:hover { transform: scale(1.05); }
+
+        /* Layout */
+        #sidebar {
+            width: 320px;
+            background-color: var(--ui-panel);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #3a3a4a;
+        }
+
+        #main-view {
+            flex-grow: 1;
+            position: relative;
+            background-color: #000;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Controls */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #3a3a4a;
+        }
+
+        .control-group h3 { font-size: 0.9rem; color: #8a8a9e; text-transform: uppercase; letter-spacing: 1px;}
+        
+        label { font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+        
+        select, input[type="range"] { width: 100%; padding: 8px; border-radius: 4px; background: #1e1e24; color: white; border: 1px solid #444; }
+        
+        .color-picker { display: flex; align-items: center; gap: 10px; }
+        input[type="color"] { width: 40px; height: 30px; border: none; background: none; cursor: pointer; }
+
+        .header-title { font-size: 1.5rem; font-weight: bold; color: var(--ui-accent); text-align: center; margin-bottom: 10px;}
+    </style>
+</head>
+<body>
+
+    <!-- Autoplay Policy Overlay -->
+    <div id="start-overlay">
+        <h1 style="margin-bottom: 20px; color: white;">AuraVisualiser</h1>
+        <button id="start-btn">Initialize Audio Engine</button>
+        <p style="margin-top: 15px; color: #aaa; font-size: 0.9rem;">(Required by browser autoplay policies)</p>
+    </div>
+
+    <!-- Sidebar Controls -->
+    <aside id="sidebar">
+        <div class="header-title">AuraVisualiser</div>
+
+        <!-- Audio Generators -->
+        <div class="control-group">
+            <h3>Audio Scenario</h3>
+            <select id="scenario-select"></select>
+        </div>
+
+        <!-- Dynamic Parameters -->
+        <div class="control-group" id="params-group">
+            <h3>Scenario Parameters</h3>
+            <label id="lbl-p1">Param 1 <span id="val-p1">0</span></label>
+            <input type="range" id="slider-p1">
+            
+            <label id="lbl-p2" style="margin-top: 10px;">Param 2 <span id="val-p2">0</span></label>
+            <input type="range" id="slider-p2">
+        </div>
+
+        <!-- Visual Presets -->
+        <div class="control-group">
+            <h3>Visual Presets</h3>
+            <select id="preset-select"></select>
+        </div>
+
+        <!-- Custom Styling -->
+        <div class="control-group">
+            <h3>Custom Styling</h3>
+            <div class="color-picker">
+                <input type="color" id="col-bg"> <label>Background</label>
+            </div>
+            <div class="color-picker">
+                <input type="color" id="col-bar"> <label>Primary Bar</label>
+            </div>
+            <div class="color-picker">
+                <input type="color" id="col-peak"> <label>Peak Highlight</label>
+            </div>
+            <label style="margin-top: 10px;">Motion Trail (Fade) <span id="val-trail">0.2</span></label>
+            <input type="range" id="slider-trail" min="0.01" max="1" step="0.01">
+        </div>
+    </aside>
+
+    <!-- Visualizer Canvas -->
+    <main id="main-view">
+        <canvas id="visualizer"></canvas>
+    </main>
+
+    <script>
+        // --- DATA CONFIGURATION ---
+
+        // Scenarios (Generators)
+        const scenarios = {
+            sweep: { 
+                name: "Sine Sweep (Sonar)", 
+                p1: { label: "Sweep Duration (s)", min: 0.5, max: 10, step: 0.1, default: 2 },
+                p1Val: 2,
+                p2: { label: "Max Freq (Hz)", min: 1000, max: 20000, step: 100, default: 10000 },
+                p2Val: 10000
+            },
+            concurrent: { 
+                name: "Concurrent Harmonics", 
+                p1: { label: "Fundamental Freq (Hz)", min: 50, max: 1000, step: 1, default: 220 },
+                p1Val: 220,
+                p2: { label: "Number of Harmonics", min: 1, max: 10, step: 1, default: 5 },
+                p2Val: 5
+            },
+            detune: { 
+                name: "Dual Detuned (Beating)", 
+                p1: { label: "Base Freq (Hz)", min: 100, max: 2000, step: 10, default: 440 },
+                p1Val: 440,
+                p2: { label: "Detune Spread (Hz)", min: 0.1, max: 50, step: 0.1, default: 5 },
+                p2Val: 5
+            },
+            noise: { 
+                name: "Rhythmic Noise Burst", 
+                p1: { label: "Burst Speed (ms)", min: 50, max: 1000, step: 10, default: 200 },
+                p1Val: 200,
+                p2: { label: "Filter Cutoff (Hz)", min: 500, max: 15000, step: 100, default: 5000 },
+                p2Val: 5000
+            },
+            fm: { 
+                name: "FM Synthesis (Bell)", 
+                p1: { label: "Carrier Freq (Hz)", min: 100, max: 2000, step: 10, default: 400 },
+                p1Val: 400,
+                p2: { label: "Modulation Index", min: 1, max: 5000, step: 10, default: 1000 },
+                p2Val: 1000
+            },
+            sub: { 
+                name: "Sub Bass Pulse", 
+                p1: { label: "Sub Freq (Hz)", min: 20, max: 120, step: 1, default: 50 },
+                p1Val: 50,
+                p2: { label: "Pulse Rate (Hz)", min: 1, max: 20, step: 0.5, default: 4 },
+                p2Val: 4
+            }
+        };
+
+        // Visual Presets
+        const presets = {
+            aura: { name: "Aura Forge (Default)", bg: "#111111", bar: "#ff3250", peak: "#ffff00", trail: 0.2 },
+            cyberpunk: { name: "Cyberpunk City", bg: "#0a0a2a", bar: "#00ffff", peak: "#ff00ff", trail: 0.15 },
+            matrix: { name: "Terminal Matrix", bg: "#001100", bar: "#005500", peak: "#00ff00", trail: 0.3 },
+            ocean: { name: "Deep Ocean", bg: "#000b18", bar: "#0066aa", peak: "#00ffcc", trail: 0.25 },
+            sunset: { name: "Synthwave Sunset", bg: "#1a001a", bar: "#ff5500", peak: "#ffcc00", trail: 0.1 },
+            monochrome: { name: "Monochrome Lab", bg: "#ffffff", bar: "#aaaaaa", peak: "#000000", trail: 0.4 }
+        };
+
+        // --- STATE & GLOBALS ---
+        let audioCtx, analyser, masterGain;
+        let activeGenerators = []; // Store nodes to kill them when switching
+        let scenarioIntervals = []; // Store intervals to clear them
+        
+        let currentScenario = 'sweep';
+        let currentColors = { bg: "", bar: "", peak: "", trail: 0.2 };
+        
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+
+        // UI Elements
+        const selectScenario = document.getElementById('scenario-select');
+        const selectPreset = document.getElementById('preset-select');
+        const sliderP1 = document.getElementById('slider-p1');
+        const sliderP2 = document.getElementById('slider-p2');
+        const colBg = document.getElementById('col-bg');
+        const colBar = document.getElementById('col-bar');
+        const colPeak = document.getElementById('col-peak');
+        const sliderTrail = document.getElementById('slider-trail');
+
+        // --- INITIALIZATION ---
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start-overlay').style.display = 'none';
+            initAudio();
+            initUI();
+            resizeCanvas();
+            applyPreset('aura'); // Load default
+            loadScenario(currentScenario);
+            drawVisualizer();
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function resizeCanvas() {
+            width = canvas.width = canvas.clientWidth;
+            height = canvas.height = canvas.clientHeight;
+        }
+
+        // --- AUDIO ENGINE ---
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            masterGain = audioCtx.createGain();
+            
+            analyser.fftSize = 2048; // High resolution
+            analyser.smoothingTimeConstant = 0.8;
+            
+            masterGain.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            masterGain.gain.value = 0.15; // Global volume padding
+        }
+
+        function stopAllAudio() {
+            activeGenerators.forEach(node => {
+                try { node.stop(); node.disconnect(); } catch(e){}
+            });
+            activeGenerators = [];
+            scenarioIntervals.forEach(interval => clearInterval(interval));
+            scenarioIntervals = [];
+        }
+
+        // --- SCENARIO LOGIC ---
+        function runScenario(type) {
+            stopAllAudio();
+            const p1 = scenarios[type].p1Val;
+            const p2 = scenarios[type].p2Val;
+
+            switch(type) {
+                case 'sweep': // Sine Sweep
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(50, audioCtx.currentTime);
+                    // Exponential ramp to Max Freq over Duration
+                    osc.frequency.exponentialRampToValueAtTime(p2, audioCtx.currentTime + p1);
+                    osc.connect(masterGain);
+                    osc.start();
+                    activeGenerators.push(osc);
+                    
+                    // Loop it
+                    let sweepLoop = setInterval(() => {
+                        osc.frequency.setValueAtTime(50, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(p2, audioCtx.currentTime + p1);
+                    }, p1 * 1000 + 100);
+                    scenarioIntervals.push(sweepLoop);
+                    break;
+
+                case 'concurrent': // Harmonics
+                    for(let i = 1; i <= p2; i++) {
+                        let hOsc = audioCtx.createOscillator();
+                        let hGain = audioCtx.createGain();
+                        hOsc.type = 'sine';
+                        hOsc.frequency.value = p1 * i;
+                        // Higher harmonics are quieter
+                        hGain.gain.value = 1 / i; 
+                        hOsc.connect(hGain);
+                        hGain.connect(masterGain);
+                        hOsc.start();
+                        activeGenerators.push(hOsc);
+                    }
+                    break;
+
+                case 'detune': // Beating
+                    let osc1 = audioCtx.createOscillator();
+                    let osc2 = audioCtx.createOscillator();
+                    osc1.frequency.value = p1;
+                    osc2.frequency.value = p1 + p2;
+                    osc1.connect(masterGain); osc2.connect(masterGain);
+                    osc1.start(); osc2.start();
+                    activeGenerators.push(osc1, osc2);
+                    break;
+
+                case 'noise': // Rhythmic Noise
+                    let bufferSize = audioCtx.sampleRate * 2; // 2 seconds of noise
+                    let buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                    let data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
+                    
+                    let noiseLoop = setInterval(() => {
+                        let noiseSrc = audioCtx.createBufferSource();
+                        let filter = audioCtx.createBiquadFilter();
+                        let env = audioCtx.createGain();
+                        
+                        noiseSrc.buffer = buffer;
+                        filter.type = 'lowpass';
+                        filter.frequency.value = p2;
+                        
+                        env.gain.setValueAtTime(1, audioCtx.currentTime);
+                        env.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + (p1/1000) * 0.8);
+
+                        noiseSrc.connect(filter);
+                        filter.connect(env);
+                        env.connect(masterGain);
+                        
+                        noiseSrc.start();
+                        noiseSrc.stop(audioCtx.currentTime + (p1/1000));
+                        activeGenerators.push(noiseSrc);
+                    }, p1);
+                    scenarioIntervals.push(noiseLoop);
+                    break;
+
+                case 'fm': // FM Synthesis
+                    let carrier = audioCtx.createOscillator();
+                    let modulator = audioCtx.createOscillator();
+                    let modGain = audioCtx.createGain();
+                    
+                    modulator.frequency.value = p1 * 0.5; // Modulator is fraction of carrier
+                    modGain.gain.value = p2; // Mod Index
+                    carrier.frequency.value = p1;
+                    
+                    modulator.connect(modGain);
+                    modGain.connect(carrier.frequency); // FM Modulation happening here
+                    carrier.connect(masterGain);
+                    
+                    modulator.start(); carrier.start();
+                    activeGenerators.push(carrier, modulator);
+                    break;
+                    
+                case 'sub': // Pulse Bass
+                    let subOsc = audioCtx.createOscillator();
+                    let pulseGain = audioCtx.createGain();
+                    let lfo = audioCtx.createOscillator();
+                    
+                    subOsc.type = 'sine';
+                    subOsc.frequency.value = p1;
+                    lfo.type = 'sine';
+                    lfo.frequency.value = p2;
+                    
+                    // LFO controls Volume
+                    lfo.connect(pulseGain.gain);
+                    subOsc.connect(pulseGain);
+                    pulseGain.connect(masterGain);
+                    
+                    subOsc.start(); lfo.start();
+                    activeGenerators.push(subOsc, lfo);
+                    break;
+            }
+        }
+
+        // --- UI & INTERACTIONS ---
+        function initUI() {
+            // Populate Dropdowns
+            for (const [key, val] of Object.entries(scenarios)) {
+                selectScenario.add(new Option(val.name, key));
+            }
+            for (const [key, val] of Object.entries(presets)) {
+                selectPreset.add(new Option(val.name, key));
+            }
+
+            // Events
+            selectScenario.addEventListener('change', (e) => loadScenario(e.target.value));
+            selectPreset.addEventListener('change', (e) => applyPreset(e.target.value));
+
+            sliderP1.addEventListener('input', (e) => {
+                scenarios[currentScenario].p1Val = parseFloat(e.target.value);
+                document.getElementById('val-p1').innerText = e.target.value;
+                runScenario(currentScenario); // Restart with new param
+            });
+            sliderP2.addEventListener('input', (e) => {
+                scenarios[currentScenario].p2Val = parseFloat(e.target.value);
+                document.getElementById('val-p2').innerText = e.target.value;
+                runScenario(currentScenario);
+            });
+
+            // Styling Events
+            colBg.addEventListener('input', (e) => currentColors.bg = e.target.value);
+            colBar.addEventListener('input', (e) => currentColors.bar = e.target.value);
+            colPeak.addEventListener('input', (e) => currentColors.peak = e.target.value);
+            sliderTrail.addEventListener('input', (e) => {
+                currentColors.trail = e.target.value;
+                document.getElementById('val-trail').innerText = e.target.value;
+            });
+        }
+
+        function loadScenario(type) {
+            currentScenario = type;
+            const data = scenarios[type];
+            
+            // Update UI Labels and Bounds
+            document.getElementById('lbl-p1').innerHTML = `${data.p1.label} <span id="val-p1">${data.p1Val}</span>`;
+            sliderP1.min = data.p1.min; sliderP1.max = data.p1.max; 
+            sliderP1.step = data.p1.step; sliderP1.value = data.p1Val;
+
+            document.getElementById('lbl-p2').innerHTML = `${data.p2.label} <span id="val-p2">${data.p2Val}</span>`;
+            sliderP2.min = data.p2.min; sliderP2.max = data.p2.max; 
+            sliderP2.step = data.p2.step; sliderP2.value = data.p2Val;
+
+            runScenario(type);
+        }
+
+        function applyPreset(type) {
+            const preset = presets[type];
+            colBg.value = preset.bg;
+            colBar.value = preset.bar;
+            colPeak.value = preset.peak;
+            sliderTrail.value = preset.trail;
+            
+            currentColors.bg = preset.bg;
+            currentColors.bar = preset.bar;
+            currentColors.peak = preset.peak;
+            currentColors.trail = preset.trail;
+            
+            document.getElementById('val-trail').innerText = preset.trail;
+        }
+
+        // --- HELPERS ---
+        // Converts HEX color (#ff0000) to RGB string ("255, 0, 0") for alpha blending
+        function hexToRgb(hex) {
+            let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? 
+                `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` 
+                : "0,0,0";
+        }
+
+        // --- VISUALIZER DRAW LOOP ---
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            // 1. Draw Background with Trailing Alpha
+            const bgRgb = hexToRgb(currentColors.bg);
+            ctx.fillStyle = `rgba(${bgRgb}, ${currentColors.trail})`;
+            ctx.fillRect(0, 0, width, height);
+
+            // 2. Draw Frequency Bars
+            const barWidth = (width / bufferLength) * 2.5; // Multiply to fill screen better
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const barHeight = dataArray[i]; // Value 0 - 255
+                
+                if (barHeight > 0) { // Don't draw if silent
+                    const percent = barHeight / 255;
+                    const h = percent * height;
+                    const y = height - h;
+
+                    // Styling Logic: Use Peak color if loud, otherwise Primary Bar color
+                    if (percent > 0.85) {
+                        ctx.fillStyle = currentColors.peak;
+                    } else {
+                        // Optional: Add slight opacity scaling to primary color for depth
+                        const barRgb = hexToRgb(currentColors.bar);
+                        ctx.fillStyle = `rgba(${barRgb}, ${0.3 + (percent * 0.7)})`;
+                    }
+
+                    ctx.fillRect(x, y, barWidth, h);
+                }
+                x += barWidth + 1; // 1px gap
+            }
+        }
+    </script>
+</body>
+</html>
